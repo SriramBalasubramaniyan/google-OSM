@@ -1,8 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:osm_google/provider/connectiveProvider.dart';
-import 'package:osm_google/provider/locationProvider.dart';
-import 'package:osm_google/provider/mapCacheProvider.dart';
 import 'package:osm_google/provider/mapControllerProvider.dart';
 import 'package:osm_google/widget/optionButton.dart';
 import 'package:provider/provider.dart';
@@ -29,7 +27,7 @@ class _MapPageState extends State<MapPage> {
 
   Future<void> _goToCurrentLocation(BuildContext context) async {
     final mapCtrl = context.read<MapControllerProvider>();
-    final loc = context.read<LocationProvider>().currentPosition;
+    final loc = mapCtrl.currentPosition;
 
     if (loc == null) {
       Fluttertoast.showToast(msg: "Current location not available yet.");
@@ -171,14 +169,21 @@ class _MapPageState extends State<MapPage> {
   Widget build(BuildContext context) {
     final online = context.watch<ConnectivityProvider>().online;
     final ctrl = context.watch<MapControllerProvider>();
-    final cache = context.watch<MapCacheProvider>();
 
     return Scaffold(
-      body: Stack(
+      body: ctrl.loading ? SizedBox(
+        height: 20,
+        width: 20,
+        child: CircularProgressIndicator(
+          backgroundColor: Colors.grey.shade300,
+          strokeWidth: 1.7,
+          color: Colors.green,
+        ),
+      ) : Stack(
         children: [
           GoogleMap(
-            initialCameraPosition: const CameraPosition(
-              target: LatLng(13.0827, 80.2707),
+            initialCameraPosition: CameraPosition(
+              target: LatLng(ctrl.currentPosition!.latitude , ctrl.currentPosition!.longitude),
               zoom: 12,
             ),
             onMapCreated: (c) =>
@@ -200,7 +205,7 @@ class _MapPageState extends State<MapPage> {
               final bytes = await controller.takeSnapshot();
               if (bytes == null) return;
 
-              await context.read<MapCacheProvider>().saveSnapshot(
+              await context.read<MapControllerProvider>().saveSnapshot(
                 bytes: bytes,
                 ne: bounds.northeast,
                 sw: bounds.southwest,
@@ -215,7 +220,7 @@ class _MapPageState extends State<MapPage> {
                 return;
               }
 
-              final hit = cache.find(pos);
+              final hit = ctrl.find(pos);
               if (hit == null) {
                 Fluttertoast.showToast(msg: "No cached data here.");
                 return;
